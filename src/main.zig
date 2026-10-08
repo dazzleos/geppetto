@@ -177,6 +177,7 @@ fn run(init: std.process.Init.Minimal) !void {
             .touch_motion => |t| window_ui.touchMotion(t.id, t.pos),
             .touch_up => |id| window_ui.touchUp(id),
             .touch_cancel => window_ui.touchCancel(),
+            .relative_motion, .pointer_locked => {},
         };
 
         if (apply(&actions, &recorder, &form, &time, &saver, gpa, &message)) dirty = true;
