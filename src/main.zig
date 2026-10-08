@@ -209,6 +209,7 @@ fn run(init: std.process.Init.Minimal) !void {
         idle = true;
         if (!suspended and (dirty or window_ui.needs_frame)) {
             dirty = false;
+            window_ui.fullscreen = win.fullscreen;
             window_ui.frame(width, height, now, view.Logger{
                 .recorder = &recorder,
                 .live = live[0..recorder.count],
