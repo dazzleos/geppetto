@@ -99,9 +99,7 @@ fn sameText(a: ?[]const u8, b: ?[]const u8) bool {
 }
 
 fn realNow() i64 {
-    var ts: linux.timespec = undefined;
-    _ = linux.clock_gettime(.REALTIME, &ts);
-    return ts.sec;
+    return sys.realtimeSec();
 }
 
 fn run(init: std.process.Init.Minimal) !void {
