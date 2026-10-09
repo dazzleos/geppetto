@@ -35,7 +35,7 @@ var frame: vc4.render.Frame = undefined;
 pub fn main(init: std.process.Init.Minimal) u8 {
     sys.logToKmsgIfStderr();
     run(init) catch |err| {
-        print("dazzle-data-logger: error: {s}\n", .{@errorName(err)});
+        print(sys.log_error ++ "dazzle-data-logger: error: {s}\n", .{@errorName(err)});
         return 1;
     };
     return 0;
@@ -106,7 +106,7 @@ fn run(init: std.process.Init.Minimal) !void {
     locale.current = locale.load().language;
     const gpa = std.heap.page_allocator;
     var dev = vc4.device.openRender() catch |err| {
-        print("dazzle-data-logger: no GPU ({s})\n", .{@errorName(err)});
+        print(sys.log_error ++ "dazzle-data-logger: no GPU ({s})\n", .{@errorName(err)});
         return err;
     };
     const win = try openWindow(gpa, init, &dev);
@@ -146,7 +146,7 @@ fn run(init: std.process.Init.Minimal) !void {
             break :blk win.wait(timeout);
         } else win.poll();
         waited catch |err| {
-            if (err == error.ServerError) print("dazzle-data-logger: compositor error: {s}\n", .{win.conn.errorMessage()});
+            if (err == error.ServerError) print(sys.log_error ++ "dazzle-data-logger: compositor error: {s}\n", .{win.conn.errorMessage()});
             return err;
         };
         if (win.closed or controls.quit) {
@@ -322,7 +322,7 @@ fn openWindow(gpa: std.mem.Allocator, init: std.process.Init.Minimal, dev: *vc4.
         return error.NoCompositor;
     };
     const win = app.Window.open(gpa, .device(dev), path, "Data Logger") catch |err| {
-        print("dazzle-data-logger: cannot open a window on {s} ({s})\n", .{ path, @errorName(err) });
+        print(sys.log_warning ++ "dazzle-data-logger: cannot open a window on {s} ({s})\n", .{ path, @errorName(err) });
         return err;
     };
     try win.setAppId("dazzle-data-logger");
