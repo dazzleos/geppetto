@@ -19,6 +19,9 @@ const Source = source.Source;
 
 pub const min_size = [2]u32{ 720, 480 };
 
+/// The size the window opens at: the readings beside a chart.
+pub const open_size = [2]u32{ 1024, 680 };
+
 /// The width of the rows' headers.
 const header_width = 240;
 const row_height = 96;

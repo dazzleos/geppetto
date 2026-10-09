@@ -321,7 +321,7 @@ fn openWindow(gpa: std.mem.Allocator, init: std.process.Init.Minimal, dev: *vc4.
         print("dazzle-data-logger: WAYLAND_DISPLAY needs XDG_RUNTIME_DIR\n", .{});
         return error.NoCompositor;
     };
-    const win = app.Window.open(gpa, .device(dev), path, "Data Logger") catch |err| {
+    const win = app.Window.open(gpa, .device(dev), path, .{ .title = "Data Logger", .size = view.open_size }) catch |err| {
         print(sys.log_warning ++ "dazzle-data-logger: cannot open a window on {s} ({s})\n", .{ path, @errorName(err) });
         return err;
     };
