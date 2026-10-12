@@ -64,12 +64,8 @@ pub const Actions = struct {
     fn doZoomOut(a: *Actions) void {
         a.zoom = -1;
     }
-    fn rateSetter(comptime r: u32) fn (*Actions) void {
-        return struct {
-            fn set(a: *Actions) void {
-                a.rate = r;
-            }
-        }.set;
+    fn setRate(a: *Actions, r: u32) void {
+        a.rate = r;
     }
     fn doPan(a: *Actions, seconds: f32) void {
         a.pan += seconds;
@@ -280,7 +276,19 @@ pub const Logger = struct {
         else
             cx.fmt("{s}", .{formatDuration(&time_buf, r.seconds())});
         items.append(a, cx.make(ui.SizedBox{ .width = 110, .child = cx.make(ui.Text{ .text = status, .style = .{ .size = 16, .color = if (recording) t.@"error" else t.on_surface }, .wrap = false, .ellipsis = true }) })) catch {};
-        items.append(a, cx.make(RateMenu{ .rate = if (recording) r.recorded_rate else r.rate, .actions = if (recording) null else acts })) catch {};
+        const rate = if (recording) r.recorded_rate else r.rate;
+        const rate_options = [_]ui.Select(u32).Option{
+            .{ .value = 1, .label = "1 sample a second" },
+            .{ .value = 10, .label = "10 samples a second" },
+            .{ .value = 100, .label = "100 samples a second" },
+            .{ .value = 1000, .label = "1000 samples a second" },
+        };
+        items.append(a, cx.make(ui.Select(u32){
+            .options = &rate_options,
+            .value = rate,
+            .label = cx.fmt("{d} / s", .{rate}),
+            .on_changed = if (!recording) .of(acts, Actions.setRate) else null,
+        })) catch {};
         items.append(a, cx.make(ui.Expanded{ .child = cx.make(ui.Empty{}) })) catch {};
         items.appendSlice(a, &.{
             cx.make(ui.OutlinedButton{ .icon = .zoom_out, .on_press = .of(acts, Actions.doZoomOut) }),
@@ -338,7 +346,7 @@ pub const Logger = struct {
                 .ellipsis = true,
             }) }),
         } });
-        return cx.make(ui.Decorated{ .color = t.surface_container, .radius = .all(12), .child = cx.make(ui.Padding{ .padding = .all(16), .child = self.form_(cx) }).withKey(f.generation) });
+        return cx.make(ui.Card{ .variant = .filled, .child = self.form_(cx).withKey(f.generation) });
     }
 
     /// The form for a new row: what kind of source, where it is, and a
@@ -426,36 +434,6 @@ pub const Logger = struct {
             cx.make(ui.OutlinedButton{ .label = "Cancel", .icon = .close, .on_press = .of(f, Form.hide) }),
         } })) catch {};
         return cx.make(ui.Column{ .cross_axis_alignment = .stretch, .main_axis_size = .min, .spacing = 12, .children = lines.items });
-    }
-};
-
-/// The rate, as a button: pressing it offers the others, in a menu.
-const RateMenu = struct {
-    rate: u32,
-    /// None while recording (the rate cannot change).
-    actions: ?*Actions,
-
-    pub const State = struct {
-        node: ?*ui.Node = null,
-        actions: ?*Actions = null,
-
-        fn open(st: *State) void {
-            const n = st.node orelse return;
-            const acts = st.actions orelse return;
-            const pos = n.position();
-            n.ui.openMenu(n, .{ pos[0], pos[1] + n.size.h }, &.{
-                .{ .label = "1 sample a second", .on_press = .of(acts, Actions.rateSetter(1)) },
-                .{ .label = "10 samples a second", .on_press = .of(acts, Actions.rateSetter(10)) },
-                .{ .label = "100 samples a second", .on_press = .of(acts, Actions.rateSetter(100)) },
-                .{ .label = "1000 samples a second", .on_press = .of(acts, Actions.rateSetter(1000)) },
-            });
-        }
-    };
-
-    pub fn build(self: *const RateMenu, cx: *ui.Context, state: *State) ui.Widget {
-        state.node = cx.node;
-        state.actions = self.actions;
-        return cx.make(ui.OutlinedButton{ .label = cx.fmt("{d} / s", .{self.rate}), .trailing_icon = .expand_more, .on_press = if (self.actions != null) .of(state, State.open) else null });
     }
 };
 
