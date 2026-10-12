@@ -455,7 +455,7 @@ const RateMenu = struct {
     pub fn build(self: *const RateMenu, cx: *ui.Context, state: *State) ui.Widget {
         state.node = cx.node;
         state.actions = self.actions;
-        return cx.make(ui.OutlinedButton{ .label = cx.fmt("{d} / s", .{self.rate}), .icon = .expand_more, .on_press = if (self.actions != null) .of(state, State.open) else null });
+        return cx.make(ui.OutlinedButton{ .label = cx.fmt("{d} / s", .{self.rate}), .trailing_icon = .expand_more, .on_press = if (self.actions != null) .of(state, State.open) else null });
     }
 };
 
