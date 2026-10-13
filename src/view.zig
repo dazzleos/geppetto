@@ -42,6 +42,7 @@ pub const Actions = struct {
     /// Zoom in (+1) or out (-1); pan by seconds.
     zoom: i8 = 0,
     pan: f32 = 0,
+    dismiss_message: bool = false,
 
     fn doRecord(a: *Actions) void {
         a.record = true;
@@ -69,6 +70,9 @@ pub const Actions = struct {
     }
     fn doPan(a: *Actions, seconds: f32) void {
         a.pan += seconds;
+    }
+    fn doDismissMessage(a: *Actions) void {
+        a.dismiss_message = true;
     }
 };
 
@@ -242,12 +246,16 @@ pub const Logger = struct {
                 .maximized = self.maximized,
             }),
             cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16, .top = 12, .bottom = 8 }, .child = self.toolbar(cx) }),
-            cx.make(ui.Expanded{ .child = cx.make(ui.ScrollView{ .child = cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16 }, .child = cx.make(ui.Column{
-                .cross_axis_alignment = .stretch,
-                .main_axis_size = .min,
-                .spacing = 6,
-                .children = rows.items,
-            }) }) }) }),
+            cx.make(ui.Expanded{ .child = cx.make(ui.Snackbar{
+                .message = self.message,
+                .on_dismiss = .of(self.actions, Actions.doDismissMessage),
+                .child = cx.make(ui.ScrollView{ .child = cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16 }, .child = cx.make(ui.Column{
+                    .cross_axis_alignment = .stretch,
+                    .main_axis_size = .min,
+                    .spacing = 6,
+                    .children = rows.items,
+                }) }) }),
+            }) }),
             cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16, .top = 8, .bottom = 12 }, .child = self.bottom(cx) }),
         } });
     }
@@ -340,7 +348,7 @@ pub const Logger = struct {
         if (!f.open or !can_add) return cx.make(ui.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
             cx.make(ui.OutlinedButton{ .label = "Add row", .icon = .add, .on_press = if (can_add) .of(f, Form.show) else null }),
             cx.make(ui.Expanded{ .child = cx.make(ui.Text{
-                .text = if (self.saving) "Saving\u{2026}" else if (self.recorder.isRecording()) "Rows can be added and removed when not recording" else self.message,
+                .text = if (self.saving) "Saving\u{2026}" else if (self.recorder.isRecording()) "Rows can be added and removed when not recording" else "",
                 .style = .{ .size = 15, .color = t.on_surface_variant },
                 .wrap = false,
                 .ellipsis = true,

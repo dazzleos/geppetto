@@ -198,6 +198,10 @@ fn apply(
         if (!sys.shell.open("dazzle-settings", "gpio")) message.* = "Settings could not be opened";
         changed = true;
     }
+    if (a.dismiss_message) {
+        message.* = "";
+        changed = true;
+    }
     if (a.rate) |rate| {
         r.setRate(rate);
         changed = true;
