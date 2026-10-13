@@ -301,7 +301,7 @@ pub const Logger = struct {
         items.appendSlice(a, &.{
             cx.make(ui.OutlinedButton{ .icon = .zoom_out, .on_press = .of(acts, Actions.doZoomOut) }),
             cx.make(ui.OutlinedButton{ .icon = .zoom_in, .on_press = .of(acts, Actions.doZoomIn) }),
-            cx.make(ui.OutlinedButton{ .label = if (labels) "Clear" else "", .icon = .delete_sweep, .on_press = if (!recording and r.sampleCount() > 0) .of(acts, Actions.doClear) else null }),
+            cx.make(ui.OutlinedButton{ .label = if (labels) "Clear" else "", .icon = .delete_sweep, .destructive = true, .on_press = if (!recording and r.sampleCount() > 0) .of(acts, Actions.doClear) else null }),
             cx.make(ui.OutlinedButton{ .label = if (labels) "Save" else "", .icon = .save, .on_press = if (!recording and !self.saving and r.sampleCount() > 0) .of(acts, Actions.doSave) else null }),
             cx.make(ui.OutlinedButton{ .label = if (labels) "GPIO settings" else "", .icon = .settings_input_component, .on_press = .of(acts, Actions.doOpenGpio) }),
         }) catch {};
@@ -325,7 +325,7 @@ pub const Logger = struct {
                 cx.make(ui.Text{ .text = cx.fmt("{s}", .{track.source.describe(&desc_buf)}), .style = .{ .size = 12, .color = t.on_surface_variant }, .wrap = false, .ellipsis = true }),
                 cx.make(ui.Text{ .text = now, .style = .{ .size = if (failed) 13 else 18, .color = if (failed) t.@"error" else colour }, .wrap = failed, .ellipsis = !failed }),
             } }) }),
-            cx.make(ui.OutlinedButton{ .icon = .delete, .on_press = if (self.recorder.isRecording()) null else .of(remove, Remove.press) }),
+            cx.make(ui.OutlinedButton{ .icon = .delete, .destructive = true, .on_press = if (self.recorder.isRecording()) null else .of(remove, Remove.press) }),
         } }) }) });
         return cx.make(ui.Row{ .cross_axis_alignment = .stretch, .children = &.{
             header,
