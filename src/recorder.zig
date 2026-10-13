@@ -60,7 +60,9 @@ pub const Track = struct {
     }
 
     pub fn setName(t: *Track, n: []const u8) void {
-        t.name_len = @intCast(@min(n.len, t.name_buf.len));
+        var len = @min(n.len, t.name_buf.len);
+        while (len > 0 and len < n.len and n[len] & 0xc0 == 0x80) len -= 1;
+        t.name_len = @intCast(len);
         @memcpy(t.name_buf[0..t.name_len], n[0..t.name_len]);
     }
 

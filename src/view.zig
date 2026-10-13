@@ -81,7 +81,7 @@ pub const Form = struct {
     pub const Kind = enum { digital, analog, i2c, serial };
 
     pub const Field = struct {
-        buf: [24]u8 = undefined,
+        buf: [40]u8 = undefined,
         len: u8 = 0,
 
         pub fn init(t: []const u8) Field {
@@ -95,7 +95,9 @@ pub const Form = struct {
         }
 
         pub fn set(f: *Field, t: []const u8) void {
-            f.len = @intCast(@min(t.len, f.buf.len));
+            var n = @min(t.len, f.buf.len);
+            while (n > 0 and n < t.len and t[n] & 0xc0 == 0x80) n -= 1;
+            f.len = @intCast(n);
             @memcpy(f.buf[0..f.len], t[0..f.len]);
         }
     };
