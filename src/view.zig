@@ -26,8 +26,9 @@ pub const open_size = [2]u32{ 1024, 680 };
 const header_width = 240;
 const row_height = 96;
 
-/// The rows' colours, in turn.
-const palette = [_]gfx.Color{ .rgb(0x4fc3f7), .rgb(0xaed581), .rgb(0xffb74d), .rgb(0xf06292), .rgb(0xba68c8), .rgb(0x4db6ac), .rgb(0xfff176), .rgb(0x90a4ae) };
+/// The rows' colours, in turn (for dark and light themes).
+const dark_palette = [_]gfx.Color{ .rgb(0x4fc3f7), .rgb(0xaed581), .rgb(0xffb74d), .rgb(0xf06292), .rgb(0xba68c8), .rgb(0x4db6ac), .rgb(0xfff176), .rgb(0x90a4ae) };
+const light_palette = [_]gfx.Color{ .rgb(0x0277bd), .rgb(0x558b2f), .rgb(0xef6c00), .rgb(0xc2185b), .rgb(0x7b1fa2), .rgb(0x00796b), .rgb(0xb26a00), .rgb(0x455a64) };
 
 /// What the window asks for, done between frames (see main.zig).
 pub const Actions = struct {
@@ -313,6 +314,7 @@ pub const Logger = struct {
     /// A row: its header (name, what it reads, its value now) and its plot.
     fn row(self: *const Logger, cx: *ui.Context, track: *const Track, i: usize) ui.Widget {
         const t = cx.theme();
+        const palette = if (t.surface.r > 0.5) &light_palette else &dark_palette;
         const colour = palette[i % palette.len];
         const live = if (i < self.live.len) self.live[i] else Live{};
         var desc_buf: [96]u8 = undefined;
