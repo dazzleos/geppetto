@@ -7,8 +7,8 @@
 //! page; along the bottom, Add row, which opens a form for the source.
 
 const std = @import("std");
-const ui = @import("ui");
-const gfx = @import("gfx");
+const kete = @import("kete");
+const gfx = kete.gfx;
 const sys = @import("sys");
 const recorder_mod = @import("recorder.zig");
 const source = @import("source.zig");
@@ -220,64 +220,53 @@ pub const Logger = struct {
     saving: bool = false,
     /// The window's width (narrow windows have fewer words).
     width: f32 = 1280,
-    on_close: ?ui.Callback = null,
-    on_maximize: ?ui.Callback = null,
-    on_drag: ?ui.Callback = null,
-    maximized: bool = true,
 
-    pub fn build(self: *const Logger, cx: *ui.Context) ui.Widget {
+    pub fn build(self: *const Logger, cx: *kete.BuildContext) kete.Widget {
         const t = cx.theme();
         const r = self.recorder;
-        const a = cx.ui.arena();
-        var rows: std.ArrayList(ui.Widget) = .empty;
+        const a = cx.arena;
+        var rows: std.ArrayList(kete.Widget) = .empty;
         // The time line, above the rows.
-        rows.append(a, cx.make(ui.Row{ .children = &.{
-            cx.make(ui.SizedBox{ .width = header_width }),
-            cx.make(ui.Expanded{ .child = cx.make(Ruler{ .t0 = self.time.end - self.time.span, .span = self.time.span }) }),
+        rows.append(a, cx.make(kete.Row{ .children = &.{
+            cx.make(kete.SizedBox{ .width = header_width }),
+            cx.make(kete.Expanded{ .child = cx.make(Ruler{ .t0 = self.time.end - self.time.span, .span = self.time.span }) }),
         } })) catch {};
         for (r.tracks[0..r.count], 0..) |*track, i| rows.append(a, self.row(cx, track, i)) catch {};
-        if (r.count == 0) rows.append(a, cx.make(ui.Padding{ .padding = .all(24), .child = cx.make(ui.Text{
+        if (r.count == 0) rows.append(a, cx.make(kete.Padding{ .padding = .all(24), .child = cx.make(kete.Text{
             .text = "Add a row for each thing to record: a GPIO pin, an analog input on an I2C converter, a register of an I2C device, or a serial port.",
             .style = .{ .size = 18, .color = t.on_surface_variant },
         }) })) catch {};
-        return cx.make(ui.Column{ .cross_axis_alignment = .stretch, .children = &.{
-            cx.make(ui.TitleBar{
-                .title = "Data Logger",
-                .on_close = self.on_close,
-                .on_maximize = self.on_maximize,
-                .on_drag = self.on_drag,
-                .maximized = self.maximized,
-            }),
-            cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16, .top = 12, .bottom = 8 }, .child = self.toolbar(cx) }),
-            cx.make(ui.Expanded{ .child = cx.make(ui.Snackbar{
+        return cx.make(kete.Column{ .cross_axis_alignment = .stretch, .children = &.{
+            cx.make(kete.Padding{ .padding = .{ .left = 16, .right = 16, .top = 12, .bottom = 8 }, .child = self.toolbar(cx) }),
+            cx.make(kete.Expanded{ .child = cx.make(kete.Snackbar{
                 .message = self.message,
                 .on_dismiss = .of(self.actions, Actions.doDismissMessage),
-                .child = cx.make(ui.ScrollView{ .child = cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16 }, .child = cx.make(ui.Column{
+                .child = cx.make(kete.ScrollView{ .child = cx.make(kete.Padding{ .padding = .{ .left = 16, .right = 16 }, .child = cx.make(kete.Column{
                     .cross_axis_alignment = .stretch,
-                    .main_axis_size = .min,
+                    .fill = false,
                     .spacing = 6,
                     .children = rows.items,
                 }) }) }),
             }) }),
-            cx.make(ui.Padding{ .padding = .{ .left = 16, .right = 16, .top = 8, .bottom = 12 }, .child = self.bottom(cx) }),
+            cx.make(kete.Padding{ .padding = .{ .left = 16, .right = 16, .top = 8, .bottom = 12 }, .child = self.bottom(cx) }),
         } });
     }
 
-    fn toolbar(self: *const Logger, cx: *ui.Context) ui.Widget {
+    fn toolbar(self: *const Logger, cx: *kete.BuildContext) kete.Widget {
         const t = cx.theme();
         const r = self.recorder;
         const recording = r.isRecording();
         const acts = self.actions;
-        const a = cx.ui.arena();
+        const a = cx.arena;
         // In a narrow window, the buttons are their icons alone (Record
         // and Stop too, in the narrowest).
         const labels = self.width >= 1000;
         const narrowest = self.width < 800;
-        var items: std.ArrayList(ui.Widget) = .empty;
+        var items: std.ArrayList(kete.Widget) = .empty;
         items.append(a, if (recording)
-            cx.make(ui.OutlinedButton{ .label = if (narrowest) "" else "Stop", .icon = .stop, .on_press = .of(acts, Actions.doStop) })
+            cx.make(kete.OutlinedButton{ .label = if (narrowest) "" else "Stop", .icon = .stop, .on_press = .of(acts, Actions.doStop) })
         else
-            cx.make(ui.OutlinedButton{ .label = if (narrowest) "" else "Record", .icon = .fiber_manual_record, .on_press = if (r.count > 0 and !self.saving) .of(acts, Actions.doRecord) else null })) catch {};
+            cx.make(kete.OutlinedButton{ .label = if (narrowest) "" else "Record", .icon = .fiber_manual_record, .on_press = if (r.count > 0 and !self.saving) .of(acts, Actions.doRecord) else null })) catch {};
         var time_buf: [32]u8 = undefined;
         const late = r.late.load(.monotonic);
         const status = if (r.full.load(.monotonic))
@@ -286,33 +275,33 @@ pub const Logger = struct {
             cx.fmt("{s} ({d} samples late)", .{ formatDuration(&time_buf, r.seconds()), late })
         else
             cx.fmt("{s}", .{formatDuration(&time_buf, r.seconds())});
-        items.append(a, cx.make(ui.SizedBox{ .width = 110, .child = cx.make(ui.Text{ .text = status, .style = .{ .size = 16, .color = if (recording) t.@"error" else t.on_surface }, .wrap = false, .ellipsis = true }) })) catch {};
+        items.append(a, cx.make(kete.SizedBox{ .width = 110, .child = cx.make(kete.Text{ .text = status, .style = .{ .size = 16, .color = if (recording) t.@"error" else t.on_surface }, .wrap = false, .ellipsis = true }) })) catch {};
         const rate = if (recording) r.recorded_rate else r.rate;
-        const rate_options = [_]ui.Select(u32).Option{
-            .{ .value = 1, .label = "1 sample a second" },
-            .{ .value = 10, .label = "10 samples a second" },
-            .{ .value = 100, .label = "100 samples a second" },
-            .{ .value = 1000, .label = "1000 samples a second" },
+        const rate_options = [_]kete.Select(u32).Option{
+            .labeled(1, "1 sample a second"),
+            .labeled(10, "10 samples a second"),
+            .labeled(100, "100 samples a second"),
+            .labeled(1000, "1000 samples a second"),
         };
-        items.append(a, cx.make(ui.Select(u32){
+        items.append(a, cx.make(kete.Select(u32){
             .options = &rate_options,
             .value = rate,
             .label = cx.fmt("{d} / s", .{rate}),
             .on_changed = if (!recording) .of(acts, Actions.setRate) else null,
         })) catch {};
-        items.append(a, cx.make(ui.Expanded{ .child = cx.make(ui.Empty{}) })) catch {};
+        items.append(a, cx.make(kete.Expanded{ .child = cx.make(kete.SizedBox.empty) })) catch {};
         items.appendSlice(a, &.{
-            cx.make(ui.OutlinedButton{ .icon = .zoom_out, .on_press = .of(acts, Actions.doZoomOut) }),
-            cx.make(ui.OutlinedButton{ .icon = .zoom_in, .on_press = .of(acts, Actions.doZoomIn) }),
-            cx.make(ui.OutlinedButton{ .label = if (labels) "Clear" else "", .icon = .delete_sweep, .destructive = true, .on_press = if (!recording and r.sampleCount() > 0) .of(acts, Actions.doClear) else null }),
-            cx.make(ui.OutlinedButton{ .label = if (labels) "Save" else "", .icon = .save, .on_press = if (!recording and !self.saving and r.sampleCount() > 0) .of(acts, Actions.doSave) else null }),
-            cx.make(ui.OutlinedButton{ .label = if (labels) "GPIO settings" else "", .icon = .settings_input_component, .on_press = .of(acts, Actions.doOpenGpio) }),
+            cx.make(kete.OutlinedButton{ .icon = .zoom_out, .on_press = .of(acts, Actions.doZoomOut) }),
+            cx.make(kete.OutlinedButton{ .icon = .zoom_in, .on_press = .of(acts, Actions.doZoomIn) }),
+            cx.make(kete.OutlinedButton{ .label = if (labels) "Clear" else "", .icon = .delete_sweep, .destructive = true, .on_press = if (!recording and r.sampleCount() > 0) .of(acts, Actions.doClear) else null }),
+            cx.make(kete.OutlinedButton{ .label = if (labels) "Save" else "", .icon = .save, .on_press = if (!recording and !self.saving and r.sampleCount() > 0) .of(acts, Actions.doSave) else null }),
+            cx.make(kete.OutlinedButton{ .label = if (labels) "GPIO settings" else "", .icon = .settings_input_component, .on_press = .of(acts, Actions.doOpenGpio) }),
         }) catch {};
-        return cx.make(ui.Row{ .spacing = 8, .cross_axis_alignment = .center, .children = items.items });
+        return cx.make(kete.Row{ .spacing = 8, .cross_axis_alignment = .center, .children = items.items });
     }
 
     /// A row: its header (name, what it reads, its value now) and its plot.
-    fn row(self: *const Logger, cx: *ui.Context, track: *const Track, i: usize) ui.Widget {
+    fn row(self: *const Logger, cx: *kete.BuildContext, track: *const Track, i: usize) kete.Widget {
         const t = cx.theme();
         const palette = if (t.surface.r > 0.5) &light_palette else &dark_palette;
         const colour = palette[i % palette.len];
@@ -320,20 +309,20 @@ pub const Logger = struct {
         var desc_buf: [96]u8 = undefined;
         var value_buf: [64]u8 = undefined;
         const now: []const u8, const failed = if (live.failure) |why| .{ cx.fmt("Cannot read: {s}", .{why}), true } else .{ cx.fmt("{s}", .{formatValue(&value_buf, &track.source, live)}), false };
-        const remove = cx.ui.arena().create(Remove) catch return cx.make(ui.Empty{});
+        const remove = cx.arena.create(Remove) catch return cx.make(kete.SizedBox.empty);
         remove.* = .{ .actions = self.actions, .index = i };
-        const header = cx.make(ui.SizedBox{ .width = header_width, .height = row_height, .child = cx.make(ui.Padding{ .padding = .{ .right = 8, .top = 4 }, .child = cx.make(ui.Row{ .cross_axis_alignment = .start, .spacing = 8, .children = &.{
-            cx.make(ui.SizedBox{ .width = 4, .height = row_height - 12, .child = cx.make(ui.Decorated{ .color = colour, .radius = .all(2) }) }),
-            cx.make(ui.Expanded{ .child = cx.make(ui.Column{ .cross_axis_alignment = .stretch, .main_axis_size = .min, .spacing = 2, .children = &.{
-                cx.make(ui.Text{ .text = track.name(), .style = .{ .size = 16, .color = t.on_surface }, .wrap = false, .ellipsis = true }),
-                cx.make(ui.Text{ .text = cx.fmt("{s}", .{track.source.describe(&desc_buf)}), .style = .{ .size = 12, .color = t.on_surface_variant }, .wrap = false, .ellipsis = true }),
-                cx.make(ui.Text{ .text = now, .style = .{ .size = if (failed) 13 else 18, .color = if (failed) t.@"error" else colour }, .wrap = failed, .ellipsis = !failed }),
+        const header = cx.make(kete.SizedBox{ .width = header_width, .height = row_height, .child = cx.make(kete.Padding{ .padding = .{ .right = 8, .top = 4 }, .child = cx.make(kete.Row{ .cross_axis_alignment = .start, .spacing = 8, .children = &.{
+            cx.make(kete.SizedBox{ .width = 4, .height = row_height - 12, .child = cx.make(kete.RoundedBox{ .color = colour, .radius = .all(2) }) }),
+            cx.make(kete.Expanded{ .child = cx.make(kete.Column{ .cross_axis_alignment = .stretch, .fill = false, .spacing = 2, .children = &.{
+                cx.make(kete.Text{ .text = track.name(), .style = .{ .size = 16, .color = t.on_surface }, .wrap = false, .ellipsis = true }),
+                cx.make(kete.Text{ .text = cx.fmt("{s}", .{track.source.describe(&desc_buf)}), .style = .{ .size = 12, .color = t.on_surface_variant }, .wrap = false, .ellipsis = true }),
+                cx.make(kete.Text{ .text = now, .style = .{ .size = if (failed) 13 else 18, .color = if (failed) t.@"error" else colour }, .wrap = failed, .ellipsis = !failed }),
             } }) }),
-            cx.make(ui.OutlinedButton{ .icon = .delete, .destructive = true, .on_press = if (self.recorder.isRecording()) null else .of(remove, Remove.press) }),
+            cx.make(kete.OutlinedButton{ .icon = .delete, .destructive = true, .on_press = if (self.recorder.isRecording()) null else .of(remove, Remove.press) }),
         } }) }) });
-        return cx.make(ui.Row{ .cross_axis_alignment = .stretch, .children = &.{
+        return cx.make(kete.Row{ .cross_axis_alignment = .stretch, .children = &.{
             header,
-            cx.make(ui.Expanded{ .child = cx.make(Plot{
+            cx.make(kete.Expanded{ .child = cx.make(Plot{
                 .track = track,
                 .samples = self.recorder.sampleCount(),
                 .rate = self.recorder.recorded_rate,
@@ -345,81 +334,81 @@ pub const Logger = struct {
         } });
     }
 
-    fn bottom(self: *const Logger, cx: *ui.Context) ui.Widget {
+    fn bottom(self: *const Logger, cx: *kete.BuildContext) kete.Widget {
         const t = cx.theme();
         const f = self.form;
         const can_add = !self.recorder.isRecording() and self.recorder.count < recorder_mod.max_tracks;
-        if (!f.open or !can_add) return cx.make(ui.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
-            cx.make(ui.OutlinedButton{ .label = "Add row", .icon = .add, .on_press = if (can_add) .of(f, Form.show) else null }),
-            cx.make(ui.Expanded{ .child = cx.make(ui.Text{
+        if (!f.open or !can_add) return cx.make(kete.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
+            cx.make(kete.OutlinedButton{ .label = "Add row", .icon = .add, .on_press = if (can_add) .of(f, Form.show) else null }),
+            cx.make(kete.Expanded{ .child = cx.make(kete.Text{
                 .text = if (self.saving) "Saving\u{2026}" else if (self.recorder.isRecording()) "Rows can be added and removed when not recording" else "",
                 .style = .{ .size = 15, .color = t.on_surface_variant },
                 .wrap = false,
                 .ellipsis = true,
             }) }),
         } });
-        return cx.make(ui.Card{ .variant = .filled, .child = self.form_(cx).withKey(f.generation) });
+        return cx.make(kete.Card{ .variant = .filled, .child = self.form_(cx).withKey(f.generation) });
     }
 
     /// The form for a new row: what kind of source, where it is, and a
     /// name.
-    fn form_(self: *const Logger, cx: *ui.Context) ui.Widget {
+    fn form_(self: *const Logger, cx: *kete.BuildContext) kete.Widget {
         const t = cx.theme();
         const f = self.form;
-        const a = cx.ui.arena();
-        const label: ui.TextStyle = .{ .size = 15, .color = t.on_surface_variant };
-        var lines: std.ArrayList(ui.Widget) = .empty;
+        const a = cx.arena;
+        const label: kete.TextStyle = .{ .size = 15, .color = t.on_surface_variant };
+        var lines: std.ArrayList(kete.Widget) = .empty;
         const kinds = [_]struct { Form.Kind, []const u8 }{ .{ .digital, "Digital input" }, .{ .analog, "Analog input" }, .{ .i2c, "I2C register" }, .{ .serial, "Serial port" } };
-        var kind_row: std.ArrayList(ui.Widget) = .empty;
-        for (kinds) |k| kind_row.append(a, cx.make(ui.Radio(Form.Kind){ .value = k[0], .group_value = f.kind, .label = k[1], .on_changed = .of(f, Form.setKind) })) catch {};
-        lines.append(a, cx.make(ui.Row{ .spacing = 16, .children = kind_row.items })) catch {};
+        var kind_row: std.ArrayList(kete.Widget) = .empty;
+        for (kinds) |k| kind_row.append(a, cx.make(kete.RadioRow(Form.Kind){ .value = k[0], .group_value = f.kind, .label = k[1], .on_changed = .of(f, Form.setKind) })) catch {};
+        lines.append(a, cx.make(kete.Row{ .spacing = 16, .children = kind_row.items })) catch {};
         switch (f.kind) {
-            .digital => lines.append(a, cx.make(ui.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
-                cx.make(ui.Text{ .text = "GPIO", .style = label, .wrap = false }),
-                cx.make(ui.TextField{ .initial = f.pin.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setPin) }),
-                cx.make(ui.Expanded{ .child = cx.make(ui.Text{ .text = "Its number, not the pin's (GPIO 17 is pin 11). Set it up as an input in Settings, with a pull if it needs one.", .style = label }) }),
+            .digital => lines.append(a, cx.make(kete.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
+                cx.make(kete.Text{ .text = "GPIO", .style = label, .wrap = false }),
+                cx.make(kete.TextField{ .initial = f.pin.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setPin) }),
+                cx.make(kete.Expanded{ .child = cx.make(kete.Text{ .text = "Its number, not the pin's (GPIO 17 is pin 11). Set it up as an input in Settings, with a pull if it needs one.", .style = label }) }),
             } })) catch {},
             .analog => {
-                var conv: std.ArrayList(ui.Widget) = .empty;
-                conv.append(a, cx.make(ui.Text{ .text = "Converter", .style = label, .wrap = false })) catch {};
-                for (std.enums.values(source.Converter)) |c| conv.append(a, cx.make(ui.Radio(source.Converter){ .value = c, .group_value = f.converter, .label = c.label(), .on_changed = .of(f, Form.setConverter) })) catch {};
-                lines.append(a, cx.make(ui.Row{ .spacing = 16, .cross_axis_alignment = .center, .children = conv.items })) catch {};
-                var chan: std.ArrayList(ui.Widget) = .empty;
+                var conv: std.ArrayList(kete.Widget) = .empty;
+                conv.append(a, cx.make(kete.Text{ .text = "Converter", .style = label, .wrap = false })) catch {};
+                for (std.enums.values(source.Converter)) |c| conv.append(a, cx.make(kete.RadioRow(source.Converter){ .value = c, .group_value = f.converter, .label = c.label(), .on_changed = .of(f, Form.setConverter) })) catch {};
+                lines.append(a, cx.make(kete.Row{ .spacing = 16, .cross_axis_alignment = .center, .children = conv.items })) catch {};
+                var chan: std.ArrayList(kete.Widget) = .empty;
                 chan.appendSlice(a, &.{
-                    cx.make(ui.Text{ .text = "Address", .style = label, .wrap = false }),
-                    cx.make(ui.TextField{ .initial = f.address.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setAddress) }),
-                    cx.make(ui.Text{ .text = "Input", .style = label, .wrap = false }),
+                    cx.make(kete.Text{ .text = "Address", .style = label, .wrap = false }),
+                    cx.make(kete.TextField{ .initial = f.address.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setAddress) }),
+                    cx.make(kete.Text{ .text = "Input", .style = label, .wrap = false }),
                 }) catch {};
-                for (0..4) |c| chan.append(a, cx.make(ui.Radio(u2){ .value = @intCast(c), .group_value = f.channel, .label = cx.fmt("A{d}", .{c}), .on_changed = .of(f, Form.setChannel) })) catch {};
-                lines.append(a, cx.make(ui.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = chan.items })) catch {};
+                for (0..4) |c| chan.append(a, cx.make(kete.RadioRow(u2){ .value = @intCast(c), .group_value = f.channel, .label = cx.fmt("A{d}", .{c}), .on_changed = .of(f, Form.setChannel) })) catch {};
+                lines.append(a, cx.make(kete.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = chan.items })) catch {};
             },
-            .i2c => lines.append(a, cx.make(ui.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
-                cx.make(ui.Text{ .text = "Address", .style = label, .wrap = false }),
-                cx.make(ui.TextField{ .initial = f.address.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setAddress) }),
-                cx.make(ui.Text{ .text = "Register", .style = label, .wrap = false }),
-                cx.make(ui.TextField{ .initial = f.register.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setRegister) }),
-                cx.make(ui.Radio(u8){ .value = 1, .group_value = f.width, .label = "1 byte", .on_changed = .of(f, Form.setWidth) }),
-                cx.make(ui.Radio(u8){ .value = 2, .group_value = f.width, .label = "2 bytes", .on_changed = .of(f, Form.setWidth) }),
-                cx.make(ui.Checkbox{ .value = f.signed, .label = "Signed", .on_changed = .of(f, Form.setSigned) }),
+            .i2c => lines.append(a, cx.make(kete.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
+                cx.make(kete.Text{ .text = "Address", .style = label, .wrap = false }),
+                cx.make(kete.TextField{ .initial = f.address.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setAddress) }),
+                cx.make(kete.Text{ .text = "Register", .style = label, .wrap = false }),
+                cx.make(kete.TextField{ .initial = f.register.text(), .width = 80, .max_len = 4, .on_changed = .of(f, Form.setRegister) }),
+                cx.make(kete.RadioRow(u8){ .value = 1, .group_value = f.width, .label = "1 byte", .on_changed = .of(f, Form.setWidth) }),
+                cx.make(kete.RadioRow(u8){ .value = 2, .group_value = f.width, .label = "2 bytes", .on_changed = .of(f, Form.setWidth) }),
+                cx.make(kete.CheckboxRow{ .value = f.signed, .label = "Signed", .on_changed = .of(f, Form.setSigned) }),
             } })) catch {},
             .serial => {
-                var ports: std.ArrayList(ui.Widget) = .empty;
-                ports.append(a, cx.make(ui.Text{ .text = "Port", .style = label, .wrap = false })) catch {};
+                var ports: std.ArrayList(kete.Widget) = .empty;
+                ports.append(a, cx.make(kete.Text{ .text = "Port", .style = label, .wrap = false })) catch {};
                 for (0..f.ports.count) |i| {
                     const name = f.ports.name(i);
-                    ports.append(a, cx.make(ui.Radio(usize){
+                    ports.append(a, cx.make(kete.RadioRow(usize){
                         .value = i,
                         .group_value = f.port,
                         .label = if (sys.serial.isHeader(name)) cx.fmt("Header, pins 8 and 10 ({s})", .{name}) else cx.fmt("{s}", .{name}),
                         .on_changed = .of(f, Form.setPort),
                     })) catch {};
                 }
-                lines.append(a, cx.make(ui.Row{ .spacing = 16, .cross_axis_alignment = .center, .children = ports.items })) catch {};
-                var bauds: std.ArrayList(ui.Widget) = .empty;
-                bauds.append(a, cx.make(ui.Text{ .text = "Baud", .style = label, .wrap = false })) catch {};
-                for (Form.bauds) |b| bauds.append(a, cx.make(ui.Radio(u32){ .value = b, .group_value = f.baud, .label = cx.fmt("{d}", .{b}), .on_changed = .of(f, Form.setBaud) })) catch {};
-                lines.append(a, cx.make(ui.Row{ .spacing = 16, .cross_axis_alignment = .center, .children = bauds.items })) catch {};
-                if (f.ports.count > 0 and sys.serial.isHeader(f.ports.name(f.port))) lines.append(a, cx.make(ui.Text{
+                lines.append(a, cx.make(kete.Row{ .spacing = 16, .cross_axis_alignment = .center, .children = ports.items })) catch {};
+                var bauds: std.ArrayList(kete.Widget) = .empty;
+                bauds.append(a, cx.make(kete.Text{ .text = "Baud", .style = label, .wrap = false })) catch {};
+                for (Form.bauds) |b| bauds.append(a, cx.make(kete.RadioRow(u32){ .value = b, .group_value = f.baud, .label = cx.fmt("{d}", .{b}), .on_changed = .of(f, Form.setBaud) })) catch {};
+                lines.append(a, cx.make(kete.Row{ .spacing = 16, .cross_axis_alignment = .center, .children = bauds.items })) catch {};
+                if (f.ports.count > 0 and sys.serial.isHeader(f.ports.name(f.port))) lines.append(a, cx.make(kete.Text{
                     .text = "The system's messages go out on the header's port too, at the speed chosen here.",
                     .style = label,
                 })) catch {};
@@ -430,22 +419,22 @@ pub const Logger = struct {
             .ok => |s| cx.fmt("{s}", .{s.defaultName(&name_buf)}),
             .bad => "Name",
         };
-        lines.append(a, cx.make(ui.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
-            cx.make(ui.Text{ .text = "Name", .style = label, .wrap = false }),
-            cx.make(ui.TextField{ .initial = f.name.text(), .placeholder = placeholder, .width = 240, .max_len = 40, .on_changed = .of(f, Form.setName), .on_submit = .of(self.actions, struct {
+        lines.append(a, cx.make(kete.Row{ .spacing = 12, .cross_axis_alignment = .center, .children = &.{
+            cx.make(kete.Text{ .text = "Name", .style = label, .wrap = false }),
+            cx.make(kete.TextField{ .initial = f.name.text(), .placeholder = placeholder, .width = 240, .max_len = 40, .on_changed = .of(f, Form.setName), .on_submit = .of(self.actions, struct {
                 fn add(acts: *Actions) void {
                     acts.add = true;
                 }
             }.add) }),
-            cx.make(ui.Expanded{ .child = if (f.failure) |why| cx.make(ui.Text{ .text = cx.fmt("It cannot be added: {s}", .{why}), .style = .{ .size = 15, .color = t.@"error" } }) else cx.make(ui.Empty{}) }),
-            cx.make(ui.OutlinedButton{ .label = "Add", .icon = .check, .on_press = .of(self.actions, struct {
+            cx.make(kete.Expanded{ .child = if (f.failure) |why| cx.make(kete.Text{ .text = cx.fmt("It cannot be added: {s}", .{why}), .style = .{ .size = 15, .color = t.@"error" } }) else cx.make(kete.SizedBox.empty) }),
+            cx.make(kete.OutlinedButton{ .label = "Add", .icon = .check, .on_press = .of(self.actions, struct {
                 fn add(acts: *Actions) void {
                     acts.add = true;
                 }
             }.add) }),
-            cx.make(ui.OutlinedButton{ .label = "Cancel", .icon = .close, .on_press = .of(f, Form.hide) }),
+            cx.make(kete.OutlinedButton{ .label = "Cancel", .icon = .close, .on_press = .of(f, Form.hide) }),
         } })) catch {};
-        return cx.make(ui.Column{ .cross_axis_alignment = .stretch, .main_axis_size = .min, .spacing = 12, .children = lines.items });
+        return cx.make(kete.Column{ .cross_axis_alignment = .stretch, .fill = false, .spacing = 12, .children = lines.items });
     }
 };
 
@@ -494,12 +483,12 @@ const Ruler = struct {
     t0: f64,
     span: f64,
 
-    pub fn layout(_: *const Ruler, _: *ui.Node, c: ui.Constraints) ui.Size {
+    pub fn layout(_: *const Ruler, _: *kete.WidgetNode, c: kete.Constraints) kete.Size {
         return c.constrain(.{ .w = if (c.boundedWidth()) c.max_w else 400, .h = 22 });
     }
 
-    pub fn paint(self: *const Ruler, n: *ui.Node, p: *ui.Painter) void {
-        const t = &n.ui.theme;
+    pub fn paint(self: *const Ruler, n: *kete.WidgetNode, p: *kete.Painter) void {
+        const t = n.theme();
         const c = p.canvas();
         const w = n.size.w;
         const step = markStep(self.span, w);
@@ -522,17 +511,17 @@ const Plot = struct {
     span: f64,
     colour: gfx.Color,
     /// Dragging or the wheel: pan by seconds.
-    on_pan: ?ui.ValueCallback(f32) = null,
+    on_pan: ?kete.ValueCallback(f32) = null,
 
     pub const State = struct {
         drag_x: ?f32 = null,
     };
 
-    pub fn layout(_: *const Plot, _: *ui.Node, c: ui.Constraints) ui.Size {
+    pub fn layout(_: *const Plot, _: *kete.WidgetNode, c: kete.Constraints) kete.Size {
         return c.constrain(.{ .w = if (c.boundedWidth()) c.max_w else 400, .h = row_height });
     }
 
-    pub fn event(self: *const Plot, n: *ui.Node, e: ui.Event) bool {
+    pub fn event(self: *const Plot, n: *kete.WidgetNode, e: kete.Event) bool {
         const f = self.on_pan orelse return false;
         const st = n.state(State);
         const per_px: f32 = @floatCast(self.span / @max(n.size.w, 1));
@@ -542,7 +531,7 @@ const Plot = struct {
                 return true;
             },
             .press => |pr| {
-                if (pr.button != ui.btn_left) return false;
+                if (pr.button != .left) return false;
                 st.drag_x = pr.pos[0];
                 return true;
             },
@@ -560,8 +549,8 @@ const Plot = struct {
         return false;
     }
 
-    pub fn paint(self: *const Plot, n: *ui.Node, p: *ui.Painter) void {
-        const t = &n.ui.theme;
+    pub fn paint(self: *const Plot, n: *kete.WidgetNode, p: *kete.Painter) void {
+        const t = n.theme();
         const c = p.canvas();
         const w = n.size.w;
         const h = n.size.h;
@@ -669,8 +658,8 @@ const Plot = struct {
 
     /// A serial row: a mark at each line, with as much of its text as fits
     /// before the next.
-    fn paintLines(self: *const Plot, n: *ui.Node, p: *ui.Painter) void {
-        const t = &n.ui.theme;
+    fn paintLines(self: *const Plot, n: *kete.WidgetNode, p: *kete.Painter) void {
+        const t = n.theme();
         const c = p.canvas();
         const w = n.size.w;
         const rate: f64 = @floatFromInt(self.rate);
@@ -697,43 +686,43 @@ fn flush(c: *gfx.Canvas, points: []const gfx.Point, colour: gfx.Color) void {
 // --- Tests -----------------------------------------------------------------------
 
 const testing = std.testing;
-const font = @import("font");
+const font = kete.font;
 
-fn overflows(node: *ui.Node) bool {
+fn overflows(node: *kete.WidgetNode) bool {
     if (node.overflow.any()) return true;
     for (node.children.items) |ch| if (overflows(ch)) return true;
     return false;
 }
 
-fn findText(n: *ui.Node, text: []const u8) ?*ui.Node {
-    if (n.widget.as(ui.Text)) |tx| if (std.mem.eql(u8, tx.text, text)) return n;
+fn findText(n: *kete.WidgetNode, text: []const u8) ?*kete.WidgetNode {
+    if (n.widget.as(kete.Text)) |tx| if (std.mem.eql(u8, tx.text, text)) return n;
     for (n.children.items) |ch| if (findText(ch, text)) |f| return f;
     return null;
 }
 
-fn findIcon(n: *ui.Node, icon: ui.icons.Icon) ?*ui.Node {
-    if (n.widget.as(ui.Icon)) |i| if (i.icon == icon) return n;
+fn findIcon(n: *kete.WidgetNode, icon: kete.IconName) ?*kete.WidgetNode {
+    if (n.widget.as(kete.Icon)) |i| if (i.icon == icon) return n;
     for (n.children.items) |ch| if (findIcon(ch, icon)) |f| return f;
     return null;
 }
 
-fn up(n: *ui.Node, comptime T: type) ?*ui.Node {
-    var at: ?*ui.Node = n;
+fn up(n: *kete.WidgetNode, comptime T: type) ?*kete.WidgetNode {
+    var at: ?*kete.WidgetNode = n;
     while (at) |a| : (at = a.parent) if (a.widget.is(T)) return a;
     return null;
 }
 
-fn click(u: *ui.Ui, n: *ui.Node) void {
+fn click(u: *kete.ui.WindowUi, n: *kete.WidgetNode) void {
     const pos = n.position();
-    const at: ui.Point = .{ pos[0] + n.size.w / 2, pos[1] + n.size.h / 2 };
+    const at: kete.Point = .{ pos[0] + n.size.w / 2, pos[1] + n.size.h / 2 };
     u.pointerMotion(at);
-    u.pointerButton(at, ui.btn_left, true);
-    u.pointerButton(at, ui.btn_left, false);
+    u.pointerButton(at, .left, true);
+    u.pointerButton(at, .left, false);
 }
 
 test "rows of each kind, recorded and drawn, at every size; and the form" {
     const f = try font.Font.init(@embedFile("FiraSans-Regular.ttf"));
-    const u = try ui.Ui.create(testing.allocator, &f);
+    const u = try kete.ui.WindowUi.create(testing.allocator, testing.io, &f);
     defer u.destroy();
     var r = Recorder.init(testing.allocator);
     r.hardware = false;
@@ -797,7 +786,7 @@ test "rows of each kind, recorded and drawn, at every size; and the form" {
     r.record();
     u.frame(1280, 720, 2, logger);
     try testing.expect(findText(u.root.?, "Rows can be added and removed when not recording") != null);
-    click(u, up(findIcon(u.root.?, .stop).?, ui.OutlinedButton).?);
+    click(u, up(findIcon(u.root.?, .stop).?, kete.OutlinedButton).?);
     try testing.expect(actions.stop);
     r.stop();
 }

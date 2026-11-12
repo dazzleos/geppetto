@@ -11,8 +11,8 @@
 
 const std = @import("std");
 const sys = @import("sys");
-const locale = @import("locale");
-const ui = @import("ui");
+const kete = @import("kete");
+const kete_vc4 = @import("kete_vc4");
 const recorder_mod = @import("recorder.zig");
 const source = @import("source.zig");
 const view = @import("view.zig");
@@ -22,7 +22,7 @@ const print = sys.print;
 /// How often the window is drawn again, while values change.
 const refresh_ns = 100 * std.time.ns_per_ms;
 
-pub fn main(init: std.process.Init.Minimal) u8 {
+pub fn main(init: std.process.Init) u8 {
     sys.logToKmsgIfStderr();
     run(init) catch |err| {
         print(sys.log_error ++ "dazzle-data-logger: error: {s}\n", .{@errorName(err)});
@@ -92,16 +92,36 @@ fn realNow() i64 {
     return sys.realtimeSec();
 }
 
-fn run(init: std.process.Init.Minimal) !void {
-    locale.current = locale.load().language;
+/// The window's root: the logger as it is now.
+const Root = struct {
+    recorder: *const recorder_mod.Recorder,
+    live: []const view.Live,
+    form: *view.Form,
+    actions: *view.Actions,
+    time: *const view.TimeView,
+    message: *const []const u8,
+    saver: *const Saver,
+
+    pub fn build(r: *const Root, cx: *kete.BuildContext) kete.Widget {
+        const width: f32 = if (cx.window()) |w| @floatFromInt(w.size()[0]) else 1280;
+        return cx.make(view.Logger{
+            .recorder = r.recorder,
+            .live = r.live[0..r.recorder.count],
+            .form = r.form,
+            .actions = r.actions,
+            .time = r.time.*,
+            .message = r.message.*,
+            .saving = r.saver.busy(),
+            .width = width,
+        });
+    }
+};
+
+fn run(init: std.process.Init) !void {
     const gpa = std.heap.page_allocator;
-    const a = try ui.App.open(gpa, init.environ, .{
-        .title = "Data Logger",
-        .app_id = "dazzle-data-logger",
-        .size = view.open_size,
-        .min_size = view.min_size,
-    });
-    defer a.close();
+    var host: kete_vc4.Host = undefined;
+    try host.init(gpa, init.io, init.minimal.environ, .{ .app_id = "dazzle-data-logger" });
+    defer host.deinit();
 
     var recorder = recorder_mod.Recorder.init(gpa);
     try recorder.start();
@@ -118,47 +138,43 @@ fn run(init: std.process.Init.Minimal) !void {
     var message_buf: [160]u8 = undefined;
     var message: []const u8 = "";
 
-    var next_refresh: u64 = 0;
-    while (try a.step(if (a.suspended) 60 * std.time.ns_per_s else next_refresh -| sys.nowNs() + std.time.ns_per_ms)) {
-        const now = sys.nowNs();
-        a.takeInput();
+    const root: Root = .{ .recorder = &recorder, .live = &live, .form = &form, .actions = &actions, .time = &time, .message = &message, .saver = &saver };
+    const window = try host.app.openWindow(.{
+        .title = "Data Logger",
+        .root = .of(&root),
+        .size = view.open_size,
+        .min_size = view.min_size,
+        .on_close_request = .close,
+    });
 
-        if (apply(&actions, &recorder, &form, &time, &saver, gpa, &message)) a.dirty = true;
+    var next_refresh: u64 = 0;
+    while (try host.step(if (window.suspended) 60 * std.time.ns_per_s else next_refresh -| sys.nowNs() + std.time.ns_per_ms)) {
+        const now = sys.nowNs();
+        if (apply(&actions, &recorder, &form, &time, &saver, gpa, &message)) host.redraw();
         if (saver.finished()) {
             message = if (saver.err) |err|
                 std.fmt.bufPrint(&message_buf, "It could not be saved ({s})", .{@errorName(err)}) catch ""
             else
                 std.fmt.bufPrint(&message_buf, "Saved in your files as \u{201c}{s}\u{201d}", .{saver.name_buf[0..saver.name_len]}) catch "";
-            a.dirty = true;
+            host.redraw();
         }
         // The values now, and what is being recorded, a few times a second.
-        if (!a.suspended and now >= next_refresh) {
+        if (!window.suspended and now >= next_refresh) {
             next_refresh = now + refresh_ns;
             if (recorder.mutex.tryLock()) {
                 defer recorder.mutex.unlock();
                 for (recorder.tracks[0..recorder.count], live[0..recorder.count]) |*t, *l| {
                     const was = l.*;
                     l.* = .{ .value = t.value, .failure = t.failure, .line = t.last_line };
-                    if (!std.meta.eql(was.value, l.value) or !sameText(was.failure, l.failure) or was.line.len != l.line.len or was.line.at != l.line.at) a.dirty = true;
+                    if (!std.meta.eql(was.value, l.value) or !sameText(was.failure, l.failure) or was.line.len != l.line.len or was.line.at != l.line.at) host.redraw();
                 }
             }
             if (recorder.isRecording()) {
                 // The time line follows the recording.
                 time.end = @max(recorder.seconds(), time.span);
-                a.dirty = true;
+                host.redraw();
             }
         }
-
-        try a.draw(now, view.Logger{
-            .recorder = &recorder,
-            .live = live[0..recorder.count],
-            .form = &form,
-            .actions = &actions,
-            .time = time,
-            .message = message,
-            .saving = saver.busy(),
-            .width = @floatFromInt(a.width),
-        });
     }
 }
 
