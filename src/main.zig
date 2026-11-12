@@ -60,7 +60,7 @@ const Saver = struct {
             return;
         };
         var path_buf: [128]u8 = undefined;
-        const path = std.fmt.bufPrintZ(&path_buf, "{s}/{s}", .{ sys.system.user_dir, s.name_buf[0..s.name_len] }) catch {
+        const path = std.mem.printSentinel(&path_buf, "{s}/{s}", .{ sys.system.user_dir, s.name_buf[0..s.name_len] }, 0) catch {
             s.err = error.NameTooLong;
             return;
         };
