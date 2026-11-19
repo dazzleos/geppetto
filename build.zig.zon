@@ -1,0 +1,21 @@
+.{
+    .name = .geppetto,
+    .version = "0.0.0",
+    .fingerprint = 0x5d2cff019b874753, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{
+        // Dazzle's modules (kete_vc4 and the rest) and tools, which
+        // Geppetto is built with. To build with a Dazzle checkout beside
+        // it instead: `zig build --fork=../dazzle`.
+        .dazzle = .{
+            .url = "git+https://github.com/dazzleos/dazzle#0502b4da33e0004c15e3bde74d18318b69de011f",
+            .hash = "dazzle-0.0.0-ze61IIlgrwB2QZ7XjbILOp1ESPSkG8Gw_yHa4dP2YmmX",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+    },
+}
