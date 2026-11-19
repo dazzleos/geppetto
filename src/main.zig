@@ -1,4 +1,4 @@
-//! Dazzle's Data Logger: records GPIO pins, analog inputs on I2C
+//! Geppetto: records GPIO pins, analog inputs on I2C
 //! converters, I2C devices' registers and serial ports, side by side on a
 //! time line, as an audio editor records tracks (see view.zig). A thread
 //! reads them all at the rate chosen (see recorder.zig); what is recorded
@@ -140,7 +140,7 @@ fn run(init: std.process.Init) !void {
 
     const root: Root = .{ .recorder = &recorder, .live = &live, .form = &form, .actions = &actions, .time = &time, .message = &message, .saver = &saver };
     const window = try host.app.openWindow(.{
-        .title = "Data Logger",
+        .title = "Geppetto",
         .root = .of(&root),
         .size = view.open_size,
         .min_size = view.min_size,

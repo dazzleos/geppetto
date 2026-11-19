@@ -1,4 +1,4 @@
-//! The Data Logger's window, as widgets: like an audio editor's, a row a
+//! Geppetto's window, as widgets: like an audio editor's, a row a
 //! source, one above the other on a shared time line. Each row has its
 //! name, what it reads and its value now on the left, and what it has
 //! recorded drawn to the right (a digital pin's highs and lows, a
